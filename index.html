@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -10,8 +8,54 @@
     body { font-family: sans-serif; padding: 20px; text-align: center; }
     textarea, input, button, select { margin: 5px; font-size: 16px; }
     .card { border: 2px solid #ccc; border-radius: 12px; padding: 20px; margin:20px auto; width:80%; max-width:500px; font-size:24px; }
+
     .word-list { margin-top:20px; text-align:left; max-width:600px; margin:auto; font-size:18px; }
     .hide { display: none; }
+
+    /* 新：問題と答えを横並びに */
+    #quizCard {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #qaRow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      font-size: 24px;
+      min-height: 40px; /* 答えの高さを確保 */
+    }
+
+    #question {
+      font-weight: bold;
+    }
+
+    #answer {
+      color: #007700;
+      display: none;
+      min-width: 120px;
+      border-left: 2px solid #007700;
+      padding-left: 10px;
+      white-space: nowrap;
+    }
+
+    #buttonsRow {
+      margin-top: 15px;
+    }
+
+    #buttonsRow button {
+      font-size: 20px;
+      margin: 0 10px;
+    }
+
+    #progress {
+      margin: 10px 0;
+      font-size: 18px;
+      color: #555;
+      min-height: 24px;
+    }
   </style>
 </head>
 <body>
@@ -38,12 +82,16 @@
   <button onclick="startEverWrongQuiz()">まちがえたたんごで ふくしゅう</button>
 
   <div id="quizCard" class="card hide">
-    <div id="question"></div>
-    <div id="progress" style="margin:10px 0; font-size:18px; color:#555;"></div>
-    <button onclick="showAnswer()">こたえを みる</button>
-    <div id="answer" style="display:none; margin-top:10px; font-size:22px; color:#007700;"></div>
-    <button onclick="markCorrect()">○ せいかい</button>
-    <button onclick="markWrong()">× まちがい</button>
+    <div id="qaRow">
+      <div id="question"></div>
+      <div id="answer"></div>
+    </div>
+    <div id="progress"></div>
+    <div id="buttonsRow">
+      <button onclick="showAnswer()">こたえを みる</button>
+      <button onclick="markCorrect()">○ せいかい</button>
+      <button onclick="markWrong()">× まちがい</button>
+    </div>
   </div>
 
   <div id="result" style="margin-top:20px; font-size:18px;"></div>
@@ -202,8 +250,10 @@
     }
 
     document.getElementById("question").textContent = question;
-    document.getElementById("answer").style.display = "none";
-    document.getElementById("answer").textContent = answer;
+    const answerDiv = document.getElementById("answer");
+    answerDiv.style.display = "none";
+    answerDiv.textContent = answer;
+
     document.getElementById("progress").textContent = `もんだい ${usedIndices.length} / ${vocab.length}`;
   }
 
@@ -257,3 +307,4 @@
 </script>
 </body>
 </html>
+
