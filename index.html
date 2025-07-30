@@ -33,6 +33,7 @@
   <button onclick="startQuiz()">くいずを はじめる</button>
   <button onclick="startRetest()">まちがい さいちょうせん</button>
   <button onclick="resetQuiz()">もういちど くいずを やる</button>
+  <button onclick="startEverWrongQuiz()">まちがえたたんごで ふくしゅう</button>
 
   <div id="quizCard" class="card hide">
     <div id="question"></div>
@@ -48,9 +49,10 @@
 <script>
   let vocab = [];
   let originalVocab = [];
-  let currentIndex = 0, usedIndices = [], wrongIndices = [], correctCount = 0;
+  let currentIndex = 0;
+  let usedIndices = [], wrongIndices = [], everWrongIndices = [], resultLog = [];
+  let correctCount = 0;
   let isRetest = false;
-  let resultLog = [];
 
   function addWords() {
     const lines = document.getElementById("bulkInput").value.trim().split("\n");
@@ -85,10 +87,11 @@
 
   function startQuiz() {
     if (vocab.length === 0) return alert("たんごが ありません");
+    vocab = originalVocab.slice();
     usedIndices = [];
     wrongIndices = [];
-    correctCount = 0;
     resultLog = [];
+    correctCount = 0;
     isRetest = false;
     document.getElementById("result").textContent = "";
     document.getElementById("quizCard").classList.remove("hide");
@@ -99,8 +102,8 @@
     vocab = originalVocab.slice();
     usedIndices = [];
     wrongIndices = [];
-    correctCount = 0;
     resultLog = [];
+    correctCount = 0;
     isRetest = false;
     document.getElementById("result").textContent = "さいしょから くいずを はじめます";
     document.getElementById("quizCard").classList.remove("hide");
@@ -109,13 +112,29 @@
 
   function startRetest() {
     if (wrongIndices.length === 0) return alert("まちがえたもんだいが ありません");
-    vocab = wrongIndices.map(i => vocab[i]);
+    vocab = wrongIndices.map(i => Object.assign({}, originalVocab[i], { __originalIndex: i }));
     usedIndices = [];
     wrongIndices = [];
-    correctCount = 0;
     resultLog = [];
+    correctCount = 0;
     isRetest = true;
     document.getElementById("result").textContent = "まちがい さいちょうせん を はじめます";
+    document.getElementById("quizCard").classList.remove("hide");
+    nextQuestion();
+  }
+
+  function startEverWrongQuiz() {
+    if (everWrongIndices.length === 0) {
+      alert("まちがえたたんごが ありません");
+      return;
+    }
+    vocab = everWrongIndices.map(i => Object.assign({}, originalVocab[i], { __originalIndex: i }));
+    usedIndices = [];
+    wrongIndices = [];
+    resultLog = [];
+    correctCount = 0;
+    isRetest = false;
+    document.getElementById("result").textContent = "まちがえたたんごで ふくしゅう を はじめます";
     document.getElementById("quizCard").classList.remove("hide");
     nextQuestion();
   }
@@ -130,8 +149,8 @@
         vocab = originalVocab.slice();
         usedIndices = [];
         wrongIndices = [];
-        correctCount = 0;
         resultLog = [];
+        correctCount = 0;
         isRetest = false;
         document.getElementById("result").textContent = "さいしょから くいずを はじめます";
         nextQuestion();
@@ -139,7 +158,7 @@
       }
 
       let summary = resultLog.map(log => {
-        const w = vocab[log.index];
+        const w = originalVocab[log.index];
         const type = document.getElementById("quizType").value;
         let q = type === "thaiToJapanese" ? w.thai :
                 type === "japaneseToThai" ? w.japanese :
@@ -147,8 +166,15 @@
         return `${log.result}：${q}`;
       }).join("<br>");
 
+      let wrongSummary = everWrongIndices.map(i => {
+        const w = originalVocab[i];
+        return `・${w.thai} - ${w.japanese}`;
+      }).join("<br>");
+
       document.getElementById("result").innerHTML =
-        `おわり！（${correct} せいかい / ${total} もん｜せいかいりつ ${rate}%）<br><br>${summary}`;
+        `おわり！（${correct} せいかい / ${total} もん｜せいかいりつ ${rate}%）<br><br>` +
+        summary + "<br><br><strong>まちがえたたんご（1どでも）</strong><br>" + wrongSummary;
+
       document.getElementById("quizCard").classList.add("hide");
       return;
     }
@@ -184,13 +210,16 @@
 
   function markCorrect() {
     correctCount++;
-    resultLog.push({ index: currentIndex, result: "○" });
+    const origIndex = vocab[currentIndex].__originalIndex ?? currentIndex;
+    resultLog.push({ index: origIndex, result: "○" });
     nextQuestion();
   }
 
   function markWrong() {
-    if (!wrongIndices.includes(currentIndex)) wrongIndices.push(currentIndex);
-    resultLog.push({ index: currentIndex, result: "×" });
+    const origIndex = vocab[currentIndex].__originalIndex ?? currentIndex;
+    if (!wrongIndices.includes(origIndex)) wrongIndices.push(origIndex);
+    if (!everWrongIndices.includes(origIndex)) everWrongIndices.push(origIndex);
+    resultLog.push({ index: origIndex, result: "×" });
     nextQuestion();
   }
 
@@ -225,3 +254,4 @@
 </script>
 </body>
 </html>
+
