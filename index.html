@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -7,195 +8,214 @@
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; }
     textarea, input, button, select { margin: 5px; font-size: 16px; }
+    .card { border: 2px solid #ccc; border-radius: 12px; padding: 20px; margin:20px auto; width:80%; max-width:500px; font-size:24px; }
+    .word-list { margin-top:20px; text-align:left; max-width:600px; margin:auto; font-size:18px; }
     .hide { display: none; }
-    .card { border: 2px solid #ccc; border-radius: 12px; padding: 20px; max-width: 500px; margin: 20px auto; }
-    .button-group button { margin: 0 10px; }
-    #exportArea { white-space: pre-wrap; word-wrap: break-word; }
   </style>
 </head>
 <body>
   <h1>ことばクイズ</h1>
 
   <div id="edit-area">
-    <textarea id="vocabInput" rows="10" cols="50" placeholder="กิน,たべる\nไป,いく\n..."></textarea><br />
-    <button onclick="startQuiz()">くいずを はじめる</button>
-    <button onclick="exportData()">URLで きょうゆう</button><br />
-    <input id="exportUrl" readonly size="50" /><br />
-    <button onclick="downloadCSV()">CSVダウンロード</button>
+    <textarea id="bulkInput" rows="6" cols="60" placeholder="たいご,にほんご,れいぶん を かいぎょうで にゅうりょく&#10;れい）กิน,たべる,ฉันกินข้าวทุกวัน"></textarea><br>
+    <button onclick="addWords()">たんごを ついか</button>
+    <button onclick="shareURL()">URLを つくる</button><br>
+    <input type="text" id="shareURL" readonly style="width:90%" onclick="this.select()" placeholder="ここにURLが ひょうじされます">
+
+    <h2>📚 たんごりすと</h2>
+    <ul id="vocabList" class="word-list"></ul>
   </div>
+
+
+  <select id="quizType">
+    <option value="thaiToJapanese">A → B</option>
+    <option value="japaneseToThai">B → A</option>
+  </select>
+
+  <button onclick="startQuiz()">くいずを はじめる</button>
+  <button onclick="startRetest()">まちがい さいちょうせん</button>
+  <button onclick="resetQuiz()">もういちど くいずを やる</button>
 
   <div id="quizCard" class="card hide">
-    <div id="quiz"></div>
-    <div class="button-group">
-      <button onclick="showAnswer()">こたえを みる</button>
-      <button onclick="markCorrect()">〇</button>
-      <button onclick="markWrong()">✕</button>
-    </div>
-    <div id="answer" class="hide"></div>
-    <div id="result"></div>
-    <div>せいかい: <span id="correctCount">0</span> / <span id="totalCount">0</span></div>
-    <button onclick="startRetest()">まちがい さいちょうせん</button>
-    <button onclick="resetQuiz()">もういちど くいずを やる</button>
-    <button onclick="startEverWrongQuiz()">まちがえたたんごで ふくしゅう</button>
+    <div id="question"></div>
+    <div id="progress" style="margin:10px 0; font-size:18px; color:#555;"></div>
+    <button onclick="showAnswer()">こたえを みる</button>
+    <div id="answer" style="display:none; margin-top:10px; font-size:22px; color:#007700;"></div>
+    <button onclick="markCorrect()">○ せいかい</button>
+    <button onclick="markWrong()">× まちがい</button>
   </div>
 
-  <script>
-    let vocab = [];
-    let originalVocab = [];
-    let currentIndex = 0;
-    let usedIndices = [];
-    let correctCount = 0;
-    let wrongIndices = [];
-    let resultLog = [];
-    let isRetest = false;
-    let quizType = "thaiToJapanese";
-    let everWrongSet = new Set();
+  <div id="result" style="margin-top:20px; font-size:18px;"></div>
 
-    function parseInput(input) {
-      return input.trim().split('\n').map(line => {
-        const parts = line.split(',');
-        return { thai: parts[0], japanese: parts[1] };
-      });
-    }
+<script>
+  let vocab = [];
+  let originalVocab = [];
+  let currentIndex = 0, usedIndices = [], wrongIndices = [], correctCount = 0;
+  let isRetest = false;
 
-    function startQuiz() {
-      const input = document.getElementById("vocabInput").value;
-      vocab = parseInput(input).map((item, index) => ({ ...item, __originalIndex: index }));
-      if (vocab.length === 0) return alert("たんごが ありません");
-      originalVocab = vocab.map((v, i) => ({ ...v }));
-      usedIndices = [];
-      correctCount = 0;
-      wrongIndices = [];
-      resultLog = [];
-      document.getElementById("quizCard").classList.remove("hide");
-      document.getElementById("edit-area").classList.add("hide");
-      document.getElementById("correctCount").textContent = 0;
-      document.getElementById("totalCount").textContent = vocab.length;
-      quizType = document.getElementById("quizType")?.value || "thaiToJapanese";
-      nextQuestion();
-    }
+  function addWords() {
+    const lines = document.getElementById("bulkInput").value.trim().split("\n");
+    lines.forEach(line => {
+      const [thai, japanese, example] = line.split(",");
+      if (thai && japanese) {
+        vocab.push({ thai: thai.trim(), japanese: japanese.trim(), example: (example || "").trim() });
+      }
+    });
+    originalVocab = vocab.slice();
+    renderVocabList();
+    alert("たんごを ついかしました");
+  }
 
-    function nextQuestion() {
-      if (usedIndices.length === vocab.length) {
-        document.getElementById("quiz").textContent = "しゅうりょう！";
-        document.getElementById("answer").classList.add("hide");
+  function renderVocabList() {
+    const ul = document.getElementById("vocabList");
+    ul.innerHTML = "";
+    vocab.forEach((w, i) => {
+      const li = document.createElement("li");
+      li.textContent = `${w.thai} - ${w.japanese} - ${w.example}`;
+      const del = document.createElement("button");
+      del.textContent = "さくじょ";
+      del.onclick = () => {
+        vocab.splice(i, 1);
+        originalVocab = vocab.slice();
+        renderVocabList();
+      };
+      li.appendChild(del);
+      ul.appendChild(li);
+    });
+  }
+
+  function startQuiz() {
+    if (vocab.length === 0) return alert("たんごが ありません");
+    usedIndices = [];
+    wrongIndices = [];
+    correctCount = 0;
+    isRetest = false;
+    document.getElementById("result").textContent = "";
+    document.getElementById("quizCard").classList.remove("hide");
+    nextQuestion();
+  }
+
+  function resetQuiz() {
+    vocab = originalVocab.slice();
+    usedIndices = [];
+    wrongIndices = [];
+    correctCount = 0;
+    isRetest = false;
+    document.getElementById("result").textContent = "さいしょから くいずを はじめます";
+    document.getElementById("quizCard").classList.remove("hide");
+    nextQuestion();
+  }
+
+  function startRetest() {
+    if (wrongIndices.length === 0) return alert("まちがえたもんだいが ありません");
+    vocab = wrongIndices.map(i => vocab[i]);
+    usedIndices = [];
+    wrongIndices = [];
+    correctCount = 0;
+    isRetest = true;
+    document.getElementById("result").textContent = "まちがい さいちょうせん を はじめます";
+    document.getElementById("quizCard").classList.remove("hide");
+    nextQuestion();
+  }
+
+  function nextQuestion() {
+    if (usedIndices.length >= vocab.length) {
+      const total = vocab.length;
+      const correct = correctCount;
+      const rate = Math.round((correct / total) * 100);
+
+      if (isRetest) {
+        // 再テストおわり → 元の単語リストに戻して最初から開始
+        vocab = originalVocab.slice();
+        usedIndices = [];
+        wrongIndices = [];
+        correctCount = 0;
+        isRetest = false;
+        document.getElementById("result").textContent = "さいしょから くいずを はじめます";
+        nextQuestion();
         return;
       }
-      let index;
-      do {
-        index = Math.floor(Math.random() * vocab.length);
-      } while (usedIndices.includes(index));
-      currentIndex = index;
-      usedIndices.push(index);
-      const word = vocab[index];
-      const question = quizType === "japaneseToThai" ? word.japanese : word.thai;
-      document.getElementById("quiz").textContent = question;
-      document.getElementById("answer").classList.add("hide");
+
+      document.getElementById("result").textContent = `おわり！（${correct} せいかい / ${total} もん｜せいかいりつ ${rate}%）`;
+      document.getElementById("quizCard").classList.add("hide");
+      return;
     }
 
-    function showAnswer() {
-      const word = vocab[currentIndex];
-      const answer = quizType === "japaneseToThai" ? word.thai : word.japanese;
-      document.getElementById("answer").textContent = answer;
-      document.getElementById("answer").classList.remove("hide");
+    let idx;
+    do {
+      idx = Math.floor(Math.random() * vocab.length);
+    } while (usedIndices.includes(idx));
+    currentIndex = idx;
+    usedIndices.push(idx);
+
+    const type = document.getElementById("quizType").value;
+    const w = vocab[idx];
+    let question = "", answer = "";
+
+    if (type === "thaiToJapanese") {
+      question = w.thai;
+      answer = w.japanese;
+    } else if (type === "japaneseToThai") {
+      question = w.japanese;
+      answer = w.thai;
+    } else if (type === "exampleToJapanese") {
+      question = w.example || "(れいぶんが ありません)";
+      answer = w.japanese;
     }
 
-    function markCorrect() {
-      correctCount++;
-      document.getElementById("correctCount").textContent = correctCount;
-      resultLog.push({ ...vocab[currentIndex], result: "〇" });
-      nextQuestion();
-    }
+    document.getElementById("question").textContent = question;
+    document.getElementById("answer").style.display = "none";
+    document.getElementById("answer").textContent = answer;
+    document.getElementById("progress").textContent = `もんだい ${usedIndices.length} / ${vocab.length}`;
+  }
 
-    function markWrong() {
-      const originalIndex = vocab[currentIndex].__originalIndex ?? currentIndex;
-      wrongIndices.push(originalIndex);
-      everWrongSet.add(originalIndex);
-      resultLog.push({ ...vocab[currentIndex], result: "✕" });
-      nextQuestion();
-    }
+  function showAnswer() {
+    document.getElementById("answer").style.display = "block";
+  }
 
-    function resetQuiz() {
-      if (originalVocab.length === 0) return;
-      vocab = originalVocab.map((v, i) => ({ ...v, __originalIndex: i }));
-      usedIndices = [];
-      correctCount = 0;
-      wrongIndices = [];
-      resultLog = [];
-      document.getElementById("quizCard").classList.remove("hide");
-      document.getElementById("correctCount").textContent = 0;
-      document.getElementById("totalCount").textContent = vocab.length;
-      nextQuestion();
-    }
+  function markCorrect() {
+    correctCount++;
+    nextQuestion();
+  }
 
-    function startRetest() {
-      if (wrongIndices.length === 0) return alert("まちがえたもんだいが ありません");
-      vocab = wrongIndices.map(i => ({ ...originalVocab[i], __originalIndex: i }));
-      usedIndices = [];
-      wrongIndices = [];
-      resultLog = [];
-      correctCount = 0;
-      isRetest = true;
-      document.getElementById("result").textContent = "まちがい さいちょうせん を はじめます";
-      document.getElementById("quizCard").classList.remove("hide");
-      document.getElementById("correctCount").textContent = 0;
-      document.getElementById("totalCount").textContent = vocab.length;
-      nextQuestion();
-    }
+  function markWrong() {
+    if (!wrongIndices.includes(currentIndex)) wrongIndices.push(currentIndex);
+    nextQuestion();
+  }
 
-    function startEverWrongQuiz() {
-      if (everWrongSet.size === 0) return alert("まちがえたたんごが ありません");
-      vocab = Array.from(everWrongSet).map(i => ({ ...originalVocab[i], __originalIndex: i }));
-      usedIndices = [];
-      resultLog = [];
-      correctCount = 0;
-      wrongIndices = [];
-      document.getElementById("result").textContent = "まちがえたたんご ふくしゅう を はじめます";
-      document.getElementById("quizCard").classList.remove("hide");
-      document.getElementById("correctCount").textContent = 0;
-      document.getElementById("totalCount").textContent = vocab.length;
-      nextQuestion();
-    }
+  function shareURL() {
+    if (vocab.length === 0) return alert("たんごを ついかしてください");
+    const json = JSON.stringify(originalVocab);
+    const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
+    const url = `${location.origin}${location.pathname}?data=${encoded}`;
+    const input = document.getElementById("shareURL");
+    input.value = url; input.select();
+    navigator.clipboard.writeText(url);
+    alert("URLを コピーしました");
+  }
 
-    function exportData() {
-      const data = btoa(unescape(encodeURIComponent(JSON.stringify(originalVocab))));
-      const url = `${location.origin}${location.pathname}?data=${encodeURIComponent(data)}`;
-      document.getElementById("exportUrl").value = url;
-    }
-
-    function downloadCSV() {
-      const csv = originalVocab.map(w => `${w.thai},${w.japanese}`).join("\n");
-      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "words.csv";
-      link.click();
-    }
-
-    function loadFromURL() {
-      const p = new URLSearchParams(location.search).get("data");
-      if (p) {
-        try {
-          const decoded = decodeURIComponent(escape(atob(decodeURIComponent(p))));
-          originalVocab = JSON.parse(decoded);
-          vocab = originalVocab.map((w, i) => ({ ...w, __originalIndex: i }));
-          document.getElementById("edit-area").classList.add("hide");
-          document.getElementById("quizCard").classList.remove("hide");
-          startQuiz();
-        } catch {
-          alert("URLの ないようが こわれています");
-        }
+  function loadFromURL() {
+    const p = new URLSearchParams(location.search).get("data");
+    if (p) {
+      try {
+        const decoded = decodeURIComponent(escape(atob(decodeURIComponent(p))));
+        vocab = JSON.parse(decoded);
+        originalVocab = vocab.slice();
+        document.getElementById("edit-area").classList.add("hide");
+        document.getElementById("quizCard").classList.remove("hide");
+        startQuiz();
+      } catch {
+        alert("URLの ないようが こわれています");
       }
     }
+  }
 
-    window.onload = loadFromURL;
-  </script>
+  window.onload = loadFromURL;
+</script>
+</body>
+</html>
 
-  <div>
-    <label for="quizType">クイズタイプ:</label>
-    <select id="quizType">
-      <option value="thaiToJapanese">タイ語 → 日本語</option>
-      <option value="japaneseToThai">日本語 → タイ語</option>
+
     </select>
   </div>
 </body>
