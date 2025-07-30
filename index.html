@@ -87,7 +87,7 @@
 
   function startQuiz() {
     if (vocab.length === 0) return alert("たんごが ありません");
-    vocab = originalVocab.slice();
+    vocab = originalVocab.map((w, i) => Object.assign({}, w, { __originalIndex: i }));
     usedIndices = [];
     wrongIndices = [];
     resultLog = [];
@@ -99,7 +99,7 @@
   }
 
   function resetQuiz() {
-    vocab = originalVocab.slice();
+    vocab = originalVocab.map((w, i) => Object.assign({}, w, { __originalIndex: i }));
     usedIndices = [];
     wrongIndices = [];
     resultLog = [];
@@ -146,7 +146,8 @@
       const rate = Math.round((correct / total) * 100);
 
       if (isRetest) {
-        vocab = originalVocab.slice();
+        // 再テスト終了したら元のリストに戻して最初から開始
+        vocab = originalVocab.map((w, i) => Object.assign({}, w, { __originalIndex: i }));
         usedIndices = [];
         wrongIndices = [];
         resultLog = [];
@@ -224,7 +225,7 @@
   }
 
   function shareURL() {
-    if (vocab.length === 0) return alert("たんごを ついかしてください");
+    if (originalVocab.length === 0) return alert("たんごを ついかしてください");
     const json = JSON.stringify(originalVocab);
     const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
     const url = `${location.origin}${location.pathname}?data=${encoded}`;
@@ -239,8 +240,8 @@
     if (p) {
       try {
         const decoded = decodeURIComponent(escape(atob(decodeURIComponent(p))));
-        vocab = JSON.parse(decoded);
-        originalVocab = vocab.slice();
+        originalVocab = JSON.parse(decoded);
+        vocab = originalVocab.map((w, i) => Object.assign({}, w, { __originalIndex: i }));
         document.getElementById("edit-area").classList.add("hide");
         document.getElementById("quizCard").classList.remove("hide");
         startQuiz();
