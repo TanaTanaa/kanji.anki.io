@@ -25,12 +25,12 @@
     <ul id="vocabList" class="word-list"></ul>
   </div>
 
-  <!-- 📝 クイズのしゅるい の見出しを削除済み -->
+
   <select id="quizType">
     <option value="thaiToJapanese">A → B</option>
     <option value="japaneseToThai">B → A</option>
-   
   </select>
+
   <button onclick="startQuiz()">くいずを はじめる</button>
   <button onclick="startRetest()">まちがい さいちょうせん</button>
   <button onclick="resetQuiz()">もういちど くいずを やる</button>
@@ -124,6 +124,7 @@
       const rate = Math.round((correct / total) * 100);
 
       if (isRetest) {
+        // 再テストおわり → 元の単語リストに戻して最初から開始
         vocab = originalVocab.slice();
         usedIndices = [];
         wrongIndices = [];
@@ -187,8 +188,7 @@
     const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
     const url = `${location.origin}${location.pathname}?data=${encoded}`;
     const input = document.getElementById("shareURL");
-    input.value = url;
-    input.select();
+    input.value = url; input.select();
     navigator.clipboard.writeText(url);
     alert("URLを コピーしました");
   }
@@ -213,3 +213,4 @@
 </script>
 </body>
 </html>
+
