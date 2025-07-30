@@ -48,7 +48,9 @@
 
 <script>
   let vocab = [];
+  let originalVocab = [];
   let currentIndex = 0, usedIndices = [], wrongIndices = [], correctCount = 0;
+  let isRetest = false;
 
   function addWords() {
     const lines = document.getElementById("bulkInput").value.trim().split("\n");
@@ -58,12 +60,14 @@
         vocab.push({ thai: thai.trim(), japanese: japanese.trim(), example: (example || "").trim() });
       }
     });
+    originalVocab = vocab.slice();
     renderVocabList();
     alert("たんごを ついかしました");
   }
 
   function renderVocabList() {
-    const ul = document.getElementById("vocabList"); ul.innerHTML = "";
+    const ul = document.getElementById("vocabList");
+    ul.innerHTML = "";
     vocab.forEach((w, i) => {
       const li = document.createElement("li");
       li.textContent = `${w.thai} - ${w.japanese} - ${w.example}`;
@@ -71,6 +75,7 @@
       del.textContent = "さくじょ";
       del.onclick = () => {
         vocab.splice(i, 1);
+        originalVocab = vocab.slice();
         renderVocabList();
       };
       li.appendChild(del);
@@ -80,15 +85,22 @@
 
   function startQuiz() {
     if (vocab.length === 0) return alert("たんごが ありません");
-    usedIndices = []; wrongIndices = []; correctCount = 0;
+    usedIndices = [];
+    wrongIndices = [];
+    correctCount = 0;
+    isRetest = false;
     document.getElementById("result").textContent = "";
     document.getElementById("quizCard").classList.remove("hide");
     nextQuestion();
   }
 
   function resetQuiz() {
-    usedIndices = []; wrongIndices = []; correctCount = 0;
-    document.getElementById("result").textContent = "さいちょうせん を はじめます";
+    vocab = originalVocab.slice();
+    usedIndices = [];
+    wrongIndices = [];
+    correctCount = 0;
+    isRetest = false;
+    document.getElementById("result").textContent = "さいしょから くいずを はじめます";
     document.getElementById("quizCard").classList.remove("hide");
     nextQuestion();
   }
@@ -96,7 +108,10 @@
   function startRetest() {
     if (wrongIndices.length === 0) return alert("まちがえたもんだいが ありません");
     vocab = wrongIndices.map(i => vocab[i]);
-    usedIndices = []; wrongIndices = []; correctCount = 0;
+    usedIndices = [];
+    wrongIndices = [];
+    correctCount = 0;
+    isRetest = true;
     document.getElementById("result").textContent = "まちがい さいちょうせん を はじめます";
     document.getElementById("quizCard").classList.remove("hide");
     nextQuestion();
@@ -105,16 +120,32 @@
   function nextQuestion() {
     if (usedIndices.length >= vocab.length) {
       const total = vocab.length;
-      const wrong = wrongIndices.length;
       const correct = correctCount;
       const rate = Math.round((correct / total) * 100);
+
+      if (isRetest) {
+        // 再テストおわり → 元の単語リストに戻して最初から開始
+        vocab = originalVocab.slice();
+        usedIndices = [];
+        wrongIndices = [];
+        correctCount = 0;
+        isRetest = false;
+        document.getElementById("result").textContent = "さいしょから くいずを はじめます";
+        nextQuestion();
+        return;
+      }
+
       document.getElementById("result").textContent = `おわり！（${correct} せいかい / ${total} もん｜せいかいりつ ${rate}%）`;
       document.getElementById("quizCard").classList.add("hide");
       return;
     }
+
     let idx;
-    do { idx = Math.floor(Math.random() * vocab.length); } while (usedIndices.includes(idx));
-    currentIndex = idx; usedIndices.push(idx);
+    do {
+      idx = Math.floor(Math.random() * vocab.length);
+    } while (usedIndices.includes(idx));
+    currentIndex = idx;
+    usedIndices.push(idx);
 
     const type = document.getElementById("quizType").value;
     const w = vocab[idx];
@@ -153,7 +184,7 @@
 
   function shareURL() {
     if (vocab.length === 0) return alert("たんごを ついかしてください");
-    const json = JSON.stringify(vocab);
+    const json = JSON.stringify(originalVocab);
     const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
     const url = `${location.origin}${location.pathname}?data=${encoded}`;
     const input = document.getElementById("shareURL");
@@ -168,6 +199,7 @@
       try {
         const decoded = decodeURIComponent(escape(atob(decodeURIComponent(p))));
         vocab = JSON.parse(decoded);
+        originalVocab = vocab.slice();
         document.getElementById("edit-area").classList.add("hide");
         document.getElementById("quizCard").classList.remove("hide");
         startQuiz();
@@ -181,3 +213,4 @@
 </script>
 </body>
 </html>
+
