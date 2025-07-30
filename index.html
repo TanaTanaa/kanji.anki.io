@@ -2,64 +2,75 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>にほんごくいず</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ことばクイズ</title>
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; }
-    textarea, input, button { margin: 5px; font-size: 16px; }
-    .card { border: 2px solid #ccc; border-radius: 12px; padding: 20px; margin:20px auto; width:80%; max-width:400px; font-size:24px; }
-    .word-list { margin-top:20px; text-align:left; max-width:500px; margin:auto; font-size:18px; }
+    textarea, input, button, select { margin: 5px; font-size: 16px; }
+    .card { border: 2px solid #ccc; border-radius: 12px; padding: 20px; margin:20px auto; width:80%; max-width:500px; font-size:24px; }
+    .word-list { margin-top:20px; text-align:left; max-width:600px; margin:auto; font-size:18px; }
     .hide { display: none; }
   </style>
 </head>
 <body>
-  <h1>にほんごくいず</h1>
+  <h1>ことばクイズ</h1>
 
   <div id="edit-area">
-    <textarea id="bulkInput" rows="6" cols="50" placeholder="かんじ,よみ を かいぎょうで にゅうりょく&#10;れい）川,かわ"></textarea><br>
+    <textarea id="bulkInput" rows="6" cols="60" placeholder="たいご,にほんご,れいぶん を かいぎょうで にゅうりょく&#10;れい）กิน,たべる,ฉันกินข้าวทุกวัน"></textarea><br>
     <button onclick="addWords()">たんごを ついか</button>
-    <button onclick="shareURL()">きょうゆうようURLを つくる</button><br>
-    <input type="text" id="shareURL" readonly style="width:80%" onclick="this.select()" placeholder="ここにURLが ひょうじされます">
+    <button onclick="shareURL()">URLを つくる</button><br>
+    <input type="text" id="shareURL" readonly style="width:90%" onclick="this.select()" placeholder="ここにURLが ひょうじされます">
+
     <h2>📚 たんごりすと</h2>
     <ul id="vocabList" class="word-list"></ul>
   </div>
+
+  <h2>📝 くいずのしゅるい</h2>
+  <select id="quizType">
+    <option value="thaiToJapanese">たいご → にほんご</option>
+    <option value="japaneseToThai">にほんご → たいご</option>
+    <option value="exampleToJapanese">れいぶん → にほんご</option>
+  </select>
+  <button onclick="startQuiz()">くいずを はじめる</button>
+  <button onclick="startRetest()">まちがい さいちょうせん</button>
+  <button onclick="resetQuiz()">もういちど くいずを やる</button>
 
   <div id="quizCard" class="card hide">
     <div id="question"></div>
     <div id="progress" style="margin:10px 0; font-size:18px; color:#555;"></div>
     <button onclick="showAnswer()">こたえを みる</button>
     <div id="answer" style="display:none; margin-top:10px; font-size:22px; color:#007700;"></div>
+    <button onclick="markCorrect()">○ せいかい</button>
+    <button onclick="markWrong()">× まちがい</button>
   </div>
 
   <div id="result" style="margin-top:20px; font-size:18px;"></div>
-  <button onclick="startQuiz()">くいずを はじめる</button>
-  <button onclick="startRetest()">まちがえた もんだいで さいちょうせん</button>
-  <button onclick="resetQuiz()">もういちど くいずを やる</button>
 
 <script>
   let vocab = [];
-  let currentIndex = 0, usedIndices = [], wrongIndices = [];
+  let currentIndex = 0, usedIndices = [], wrongIndices = [], correctCount = 0;
 
-  function addWords(){
+  function addWords() {
     const lines = document.getElementById("bulkInput").value.trim().split("\n");
-    lines.forEach(line=>{
-      let [kanji, reading] = line.split(",");
-      if(kanji && reading){
-        vocab.push({ kanji:kanji.trim(), reading:reading.trim() });
+    lines.forEach(line => {
+      const [thai, japanese, example] = line.split(",");
+      if (thai && japanese) {
+        vocab.push({ thai: thai.trim(), japanese: japanese.trim(), example: (example || "").trim() });
       }
     });
     renderVocabList();
     alert("たんごを ついかしました");
   }
 
-  function renderVocabList(){
+  function renderVocabList() {
     const ul = document.getElementById("vocabList"); ul.innerHTML = "";
-    vocab.forEach((w,i)=>{
+    vocab.forEach((w, i) => {
       const li = document.createElement("li");
-      li.textContent = `${w.kanji} - ${w.reading} `;
+      li.textContent = `${w.thai} - ${w.japanese} - ${w.example}`;
       const del = document.createElement("button");
-      del.textContent="さくじょ"; del.onclick=()=>{
-        vocab.splice(i,1);
+      del.textContent = "さくじょ";
+      del.onclick = () => {
+        vocab.splice(i, 1);
         renderVocabList();
       };
       li.appendChild(del);
@@ -67,70 +78,99 @@
     });
   }
 
-  function startQuiz(){
-    if(vocab.length===0) return alert("たんごが ありません");
-    usedIndices = []; wrongIndices = []; document.getElementById("result").textContent="";
+  function startQuiz() {
+    if (vocab.length === 0) return alert("たんごが ありません");
+    usedIndices = []; wrongIndices = []; correctCount = 0;
+    document.getElementById("result").textContent = "";
     document.getElementById("quizCard").classList.remove("hide");
     nextQuestion();
   }
 
-  function nextQuestion(){
-    if(usedIndices.length>=vocab.length){
-      document.getElementById("result").textContent = `おわり！`;
+  function resetQuiz() {
+    usedIndices = []; wrongIndices = []; correctCount = 0;
+    document.getElementById("result").textContent = "さいちょうせん を はじめます";
+    document.getElementById("quizCard").classList.remove("hide");
+    nextQuestion();
+  }
+
+  function startRetest() {
+    if (wrongIndices.length === 0) return alert("まちがえたもんだいが ありません");
+    vocab = wrongIndices.map(i => vocab[i]);
+    usedIndices = []; wrongIndices = []; correctCount = 0;
+    document.getElementById("result").textContent = "まちがい さいちょうせん を はじめます";
+    document.getElementById("quizCard").classList.remove("hide");
+    nextQuestion();
+  }
+
+  function nextQuestion() {
+    if (usedIndices.length >= vocab.length) {
+      const total = vocab.length;
+      const wrong = wrongIndices.length;
+      const correct = correctCount;
+      const rate = Math.round((correct / total) * 100);
+      document.getElementById("result").textContent = `おわり！（${correct} せいかい / ${total} もん｜せいかいりつ ${rate}%）`;
       document.getElementById("quizCard").classList.add("hide");
-      document.getElementById("progress").textContent="";
       return;
     }
     let idx;
-    do{ idx = Math.floor(Math.random()*vocab.length); }while(usedIndices.includes(idx));
-    currentIndex=idx; usedIndices.push(idx);
+    do { idx = Math.floor(Math.random() * vocab.length); } while (usedIndices.includes(idx));
+    currentIndex = idx; usedIndices.push(idx);
+
+    const type = document.getElementById("quizType").value;
     const w = vocab[idx];
-    document.getElementById("question").textContent = w.kanji;
-    document.getElementById("answer").style.display="none";
-    document.getElementById("answer").textContent = w.reading;
+    let question = "", answer = "";
+
+    if (type === "thaiToJapanese") {
+      question = w.thai;
+      answer = w.japanese;
+    } else if (type === "japaneseToThai") {
+      question = w.japanese;
+      answer = w.thai;
+    } else if (type === "exampleToJapanese") {
+      question = w.example || "(れいぶんが ありません)";
+      answer = w.japanese;
+    }
+
+    document.getElementById("question").textContent = question;
+    document.getElementById("answer").style.display = "none";
+    document.getElementById("answer").textContent = answer;
     document.getElementById("progress").textContent = `もんだい ${usedIndices.length} / ${vocab.length}`;
   }
 
-  function showAnswer(){ document.getElementById("answer").style.display="block"; }
+  function showAnswer() {
+    document.getElementById("answer").style.display = "block";
+  }
 
-  function startRetest(){
-    if(wrongIndices.length===0) return alert("まちがえた たんごが ありません");
-    vocab = wrongIndices.map(i=>vocab[i]);
-    usedIndices = []; wrongIndices = [];
-    document.getElementById("result").textContent = "さいちょうせん かいし";
-    document.getElementById("quizCard").classList.remove("hide");
+  function markCorrect() {
+    correctCount++;
     nextQuestion();
   }
 
-  function resetQuiz(){
-    usedIndices = [];
-    wrongIndices = [];
-    document.getElementById("result").textContent = "もういちど くいずを はじめます";
-    document.getElementById("quizCard").classList.remove("hide");
+  function markWrong() {
+    if (!wrongIndices.includes(currentIndex)) wrongIndices.push(currentIndex);
     nextQuestion();
   }
 
-  function shareURL(){
-    if(vocab.length===0)return alert("たんごを ついかしてください");
+  function shareURL() {
+    if (vocab.length === 0) return alert("たんごを ついかしてください");
     const json = JSON.stringify(vocab);
     const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
     const url = `${location.origin}${location.pathname}?data=${encoded}`;
     const input = document.getElementById("shareURL");
     input.value = url; input.select();
     navigator.clipboard.writeText(url);
-    alert("URLを こぴーしました");
+    alert("URLを コピーしました");
   }
 
-  function loadFromURL(){
+  function loadFromURL() {
     const p = new URLSearchParams(location.search).get("data");
-    if(p){
+    if (p) {
       try {
         const decoded = decodeURIComponent(escape(atob(decodeURIComponent(p))));
         vocab = JSON.parse(decoded);
         document.getElementById("edit-area").classList.add("hide");
-        currentIndex = 0; usedIndices=[]; wrongIndices=[];
         document.getElementById("quizCard").classList.remove("hide");
-        nextQuestion();
+        startQuiz();
       } catch {
         alert("URLの ないようが こわれています");
       }
