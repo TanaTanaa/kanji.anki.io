@@ -11,6 +11,7 @@
     .word-list { margin-top:20px; text-align:left; max-width:600px; margin:auto; font-size:18px; }
     .hide { display: none; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
 </head>
 <body>
   <h1>ことばクイズ</h1>
@@ -25,11 +26,10 @@
     <ul id="vocabList" class="word-list"></ul>
   </div>
 
-  <!-- 📝 クイズのしゅるい の見出しを削除済み -->
   <select id="quizType">
     <option value="thaiToJapanese">A → B</option>
     <option value="japaneseToThai">B → A</option>
-   
+    <option value="exampleToJapanese">れいぶん → B</option>
   </select>
   <button onclick="startQuiz()">くいずを はじめる</button>
   <button onclick="startRetest()">まちがい さいちょうせん</button>
@@ -182,10 +182,10 @@
   }
 
   function shareURL() {
-    if (vocab.length === 0) return alert("たんごを ついかしてください");
-    const json = JSON.stringify(originalVocab);
-    const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
-    const url = `${location.origin}${location.pathname}?data=${encoded}`;
+    if (originalVocab.length === 0) return alert("たんごを ついかしてください");
+
+    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(originalVocab));
+    const url = `${location.origin}${location.pathname}?data=${compressed}`;
     const input = document.getElementById("shareURL");
     input.value = url;
     input.select();
@@ -197,8 +197,8 @@
     const p = new URLSearchParams(location.search).get("data");
     if (p) {
       try {
-        const decoded = decodeURIComponent(escape(atob(decodeURIComponent(p))));
-        vocab = JSON.parse(decoded);
+        const decompressed = LZString.decompressFromEncodedURIComponent(p);
+        vocab = JSON.parse(decompressed);
         originalVocab = vocab.slice();
         document.getElementById("edit-area").classList.add("hide");
         document.getElementById("quizCard").classList.remove("hide");
@@ -213,4 +213,3 @@
 </script>
 </body>
 </html>
-
