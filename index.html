@@ -1,134 +1,247 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>にほんごクイズ</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; text-align: center; }
-    textarea, input, button { margin: 5px; font-size: 16px; }
-    .card { border: 2px solid #ccc; border-radius: 12px; padding: 20px; margin:20px auto; width:80%; max-width:400px; font-size:24px; }
-    .word-list { margin-top:20px; text-align:left; max-width:500px; margin:auto; font-size:18px; }
-    .hide { display: none; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>にほんごくいず（じこはんていしき）</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    padding: 20px;
+  }
+  textarea, input, button {
+    margin: 5px;
+    font-size: 16px;
+  }
+  .card {
+    border: 2px solid #ccc;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px auto;
+    width: 80%;
+    max-width: 400px;
+    font-size: 24px;
+    background: #f9f9f9;
+  }
+  .word-list {
+    margin-top: 20px;
+    text-align: left;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 18px;
+  }
+</style>
 </head>
 <body>
-  <h1>にほんごクイズ（自己判定式）</h1>
 
-  <div id="edit-area">
-    <textarea id="bulkInput" rows="6" cols="50" placeholder="漢字,よみを改行で入力&#10;例）川,かわ"></textarea><br>
-    <button onclick="addWords()">単語を追加</button>
-    <button onclick="shareURL()">共有用URLを生成</button><br>
-    <input type="text" id="shareURL" readonly style="width:80%" onclick="this.select()" placeholder="ここにURLが表示されます">
-    <h2>📚 単語リスト</h2>
-    <ul id="vocabList" class="word-list"></ul>
-  </div>
+<h1 id="main-title">にほんごくいず（じこはんていしき）</h1>
 
-  <div id="quizCard" class="card hide">
-    <div id="question"></div>
-    <div id="progress" style="margin:10px 0; font-size:18px; color:#555;"></div>
-    <button onclick="showAnswer()">こたえをみる</button>
-    <div id="answer" style="display:none; margin-top:10px; font-size:22px; color:#007700;"></div>
-    <button onclick="markCorrect()">○ 正解</button>
-    <button onclick="markWrong()">× まちがい</button>
-  </div>
+<!-- 編集エリア（ふつうのページのみ表示） -->
+<div id="edit-area">
+  <textarea id="bulkInput" rows="6" cols="50" placeholder="かんじ、よみを1ぎょうずつにゅうりょくしてください&#10;れい）川,かわ"></textarea><br>
+  <button onclick="addWords()">たんごをついか</button>
+  <button onclick="shareURL()">きょうゆうようURLをせいせい</button><br>
+  <input type="text" id="shareURL" readonly style="width:80%" onclick="this.select()" placeholder="ここにきょうゆうURLがひょうじされます">
 
-  <div id="result" style="margin-top:20px; font-size:18px;"></div>
-  <button onclick="startQuiz()">クイズをはじめる</button>
-  <button onclick="startRetest()">まちがえた単語で再テスト</button>
+  <h2>📚 たんごリスト</h2>
+  <ul id="vocabList" class="word-list"></ul>
+</div>
+
+<!-- クイズエリア（いつもあるけどURLモードによって表示/非表示） -->
+<div id="quizCard" class="card" style="display:none;">
+  <div id="question"></div>
+  <div id="progress" style="margin:10px 0; font-size:18px; color:#555;"></div>
+  <button onclick="showAnswer()">こたえをみる</button>
+  <div id="answer" style="display:none; margin-top:10px; font-size:22px; color:#007700;"></div>
+  <button onclick="markCorrect()">まる　せいかい</button>
+  <button onclick="markWrong()">ばつ　まちがい</button>
+  <br>
+  <button onclick="startOver()">さいしょからやりなおす</button>
+</div>
+
+<div id="result" style="margin-top:20px; font-size:18px;"></div>
+
+<button id="startQuizBtn" onclick="startQuiz()">くいずをはじめる</button>
+<button id="retestBtn" onclick="startRetest()">まちがえたたんごでさいてすと</button>
 
 <script>
-  let vocab = [];
-  let currentIndex = 0, usedIndices = [], wrongIndices = [];
+let vocab = [];
+let currentIndex = 0;
+let usedIndices = [];
+let wrongIndices = [];
 
-  function addWords(){
-    const lines = document.getElementById("bulkInput").value.trim().split("\n");
-    lines.forEach(line=>{
-      let [kanji, reading] = line.split(",");
-      if(kanji && reading){
-        vocab.push({ kanji:kanji.trim(), reading:reading.trim() });
-      }
-    });
-    renderVocabList();
-    alert("単語を追加しました");
+const urlParams = new URLSearchParams(location.search);
+const dataParam = urlParams.get("data");
+const isQuizOnlyMode = !!dataParam;
+
+function addWords() {
+  const lines = document.getElementById("bulkInput").value.trim().split("\n");
+  for (const line of lines) {
+    const [kanji, reading] = line.split(",");
+    if (kanji && reading) {
+      vocab.push({ kanji: kanji.trim(), reading: reading.trim() });
+    }
   }
-  function renderVocabList(){
-    const ul = document.getElementById("vocabList"); ul.innerHTML = "";
-    vocab.forEach((w,i)=>{
-      const li = document.createElement("li");
-      li.textContent = `${w.kanji} - ${w.reading} `;
-      const del = document.createElement("button");
-      del.textContent="削除"; del.onclick=()=>{
-        vocab.splice(i,1);
-        renderVocabList();
+  renderVocabList();
+  alert("たんごをついかしました");
+  document.getElementById("bulkInput").value = "";
+}
+
+function renderVocabList() {
+  const list = document.getElementById("vocabList");
+  list.innerHTML = "";
+  vocab.forEach((word, index) => {
+    const li = document.createElement("li");
+    li.textContent = `${word.kanji} - ${word.reading} `;
+    if (!isQuizOnlyMode) {
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "さくじょ";
+      delBtn.onclick = () => {
+        if (confirm("さくじょしますか？")) {
+          vocab.splice(index, 1);
+          renderVocabList();
+        }
       };
-      li.appendChild(del);
-      ul.appendChild(li);
-    });
-  }
-
-  function startQuiz(){
-    if(vocab.length===0) return alert("単語がありません");
-    usedIndices = []; wrongIndices = []; document.getElementById("result").textContent="";
-    document.getElementById("quizCard").classList.remove("hide");
-    nextQuestion();
-  }
-  function nextQuestion(){
-    if(usedIndices.length>=vocab.length){
-      document.getElementById("result").textContent = `おわり！ (${vocab.length-wrongIndices.length} 正解／${vocab.length})`;
-      document.getElementById("quizCard").classList.add("hide");
-      document.getElementById("progress").textContent="";
-      return;
+      li.appendChild(delBtn);
     }
-    let idx;
-    do{ idx = Math.floor(Math.random()*vocab.length); }while(usedIndices.includes(idx));
-    currentIndex=idx; usedIndices.push(idx);
-    const w = vocab[idx];
-    document.getElementById("question").textContent = w.kanji;
-    document.getElementById("answer").style.display="none";
-    document.getElementById("answer").textContent = w.reading;
-    document.getElementById("progress").textContent = `問題 ${usedIndices.length} / ${vocab.length}`;
-  }
-  function showAnswer(){ document.getElementById("answer").style.display="block"; }
-  function markCorrect(){ nextQuestion(); }
-  function markWrong(){ if(!wrongIndices.includes(currentIndex)) wrongIndices.push(currentIndex); nextQuestion(); }
-  function startRetest(){
-    if(wrongIndices.length===0) return alert("まちがえた単語がありません");
-    vocab = wrongIndices.map(i=>vocab[i]);
-    usedIndices = []; wrongIndices = [];
-    document.getElementById("result").textContent = "再テスト開始";
-    document.getElementById("quizCard").classList.remove("hide");
-    nextQuestion();
-  }
+    list.appendChild(li);
+  });
+}
 
-  function shareURL(){
-    if(vocab.length===0)return alert("単語を追加してください");
-    const json = JSON.stringify(vocab);
-    const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
-    const url = `${location.origin}${location.pathname}?data=${encoded}`;
-    const input = document.getElementById("shareURL");
-    input.value = url; input.select();
-    navigator.clipboard.writeText(url);
-    alert("URLをコピーしました");
+function startQuiz() {
+  if (vocab.length === 0) return alert("たんごがありません");
+  usedIndices = [];
+  wrongIndices = [];
+  document.getElementById("result").textContent = "";
+  document.getElementById("quizCard").style.display = "block";
+  document.getElementById("startQuizBtn").style.display = "none";
+  if (!isQuizOnlyMode) {
+    document.getElementById("edit-area").style.display = "none";
+    document.getElementById("retestBtn").style.display = "inline-block";
   }
+  nextQuestion();
+}
 
-  function loadFromURL(){
-    const p = new URLSearchParams(location.search).get("data");
-    if(p){
+function nextQuestion() {
+  if (usedIndices.length === vocab.length) {
+    document.getElementById("result").textContent = `おわり！ (${vocab.length - wrongIndices.length} せいかい / ${vocab.length})`;
+    document.getElementById("quizCard").style.display = "none";
+    document.getElementById("progress").textContent = "";
+    document.getElementById("startQuizBtn").style.display = "inline-block";
+    if (!isQuizOnlyMode) {
+      document.getElementById("edit-area").style.display = "block";
+      document.getElementById("retestBtn").style.display = "none";
+    }
+    return;
+  }
+  let index;
+  do {
+    index = Math.floor(Math.random() * vocab.length);
+  } while (usedIndices.includes(index));
+  currentIndex = index;
+  usedIndices.push(index);
+
+  // クイズだけモードなら「よみ」だけ表示（ひらがな）、そうでなければかんじ＋よみ
+  document.getElementById("question").textContent = isQuizOnlyMode ? vocab[index].reading : vocab[index].kanji;
+  document.getElementById("answer").style.display = "none";
+  document.getElementById("answer").textContent = isQuizOnlyMode ? vocab[index].kanji + "（" + vocab[index].reading + "）" : vocab[index].reading;
+
+  document.getElementById("progress").textContent = `もんだい ${usedIndices.length} / ${vocab.length}`;
+}
+
+function showAnswer() {
+  document.getElementById("answer").style.display = "block";
+}
+
+function markCorrect() {
+  nextQuestion();
+}
+
+function markWrong() {
+  if (!wrongIndices.includes(currentIndex)) wrongIndices.push(currentIndex);
+  nextQuestion();
+}
+
+function startRetest() {
+  if (wrongIndices.length === 0) return alert("まちがえたたんごがありません");
+  vocab = wrongIndices.map(i => vocab[i]);
+  usedIndices = [];
+  wrongIndices = [];
+  document.getElementById("result").textContent = "さいてすと かいし";
+  document.getElementById("quizCard").style.display = "block";
+  document.getElementById("startQuizBtn").style.display = "none";
+  nextQuestion();
+}
+
+function startOver() {
+  if (confirm("ほんとうに さいしょからやりなおしますか？")) {
+    usedIndices = [];
+    wrongIndices = [];
+    document.getElementById("quizCard").style.display = "none";
+    document.getElementById("result").textContent = "";
+    document.getElementById("progress").textContent = "";
+    if (!isQuizOnlyMode) {
+      document.getElementById("edit-area").style.display = "block";
+      document.getElementById("retestBtn").style.display = "none";
+    }
+    document.getElementById("startQuizBtn").style.display = "inline-block";
+  }
+}
+
+function shareURL() {
+  if (vocab.length === 0) return alert("たんごをついかしてください");
+  const json = JSON.stringify(vocab);
+  const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
+  const url = `${location.origin}${location.pathname}?data=${encoded}`;
+  const input = document.getElementById("shareURL");
+  input.value = url;
+  input.select();
+  navigator.clipboard.writeText(url);
+  alert("URLをコピーしました");
+}
+
+function loadFromURL() {
+  if (!isQuizOnlyMode) {
+    // ふつうのモード → ローカルストレージから読み込み
+    const saved = localStorage.getItem("nihongoVocab");
+    if (saved) {
       try {
-        const decoded = decodeURIComponent(escape(atob(decodeURIComponent(p))));
-        vocab = JSON.parse(decoded);
-        document.getElementById("edit-area").classList.add("hide");
-        currentIndex = 0; usedIndices=[]; wrongIndices=[];
-        document.getElementById("quizCard").classList.remove("hide");
-        nextQuestion();
-      } catch {
-        alert("URLの内容が壊れています");
-      }
+        vocab = JSON.parse(saved);
+        renderVocabList();
+      } catch {}
+    }
+  } else {
+    // きょうゆうURLモード → URLからデータを読み込み
+    try {
+      const decoded = decodeURIComponent(escape(atob(decodeURIComponent(dataParam))));
+      vocab = JSON.parse(decoded);
+      // タイトルかえる
+      document.getElementById("main-title").textContent = "にほんごくいず";
+      // 編集エリアかくす
+      document.getElementById("edit-area").style.display = "none";
+      // 「まちがえたたんごでさいてすと」ボタンは表示
+      document.getElementById("retestBtn").style.display = "inline-block";
+      // 「くいずをはじめる」ボタンを表示
+      document.getElementById("startQuizBtn").style.display = "inline-block";
+    } catch {
+      alert("URLのないようがこわれています");
     }
   }
+}
 
-  window.onload = loadFromURL;
+window.onload = () => {
+  loadFromURL();
+};
+
+// じどうほぞん（ふつうのモードだけ）
+window.onbeforeunload = () => {
+  if (!isQuizOnlyMode) {
+    localStorage.setItem("nihongoVocab", JSON.stringify(vocab));
+  }
+};
 </script>
+
 </body>
 </html>
