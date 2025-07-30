@@ -2,102 +2,141 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <title>日本語クイズ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>日本語クイズ（漢字編）</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; text-align: center; }
-    .card { border: 2px solid #ccc; border-radius: 12px; padding: 20px; margin: 20px auto; max-width: 400px; }
-    .buttons button { margin: 10px; padding: 10px 20px; }
-    textarea { width: 100%; height: 80px; }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+    }
+    .card {
+      border: 2px solid #ccc;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px auto;
+      width: 90%;
+      max-width: 500px;
+    }
+    .hidden {
+      display: none;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+    }
   </style>
 </head>
 <body>
-  <h1>日本語クイズ（漢字編）</h1>
+  <h1>日本語クイズ</h1>
 
-  <div>
-    <label for="input">単語リストを貼り付け（漢字,よみがな 形式）：</label><br />
-    <textarea id="input" placeholder="例：山,やま\n川,かわ\n空,そら"></textarea><br />
-    <button onclick="loadWords()">読み込み</button>
-    <button onclick="generateShareLink()">共有用リンク作成</button>
+  <div id="inputArea">
+    <p>単語リストを「漢字,よみ」で改行して入力：</p>
+    <textarea id="wordInput" placeholder="例:\n山,やま\n川,かわ\n..."></textarea><br />
+    <button onclick="startTest()">テスト開始</button>
+    <button onclick="shareURL()">URLを生成して共有</button>
   </div>
 
-  <div id="quiz" style="display:none;">
+  <div id="quizArea" class="hidden">
     <div class="card">
-      <div id="question"></div>
-      <div class="buttons">
-        <button onclick="showAnswer()">答えを表示</button>
-        <button onclick="next()">次へ</button>
-      </div>
-      <div id="answer" style="display:none;"></div>
+      <div id="questionCount"></div>
+      <h2 id="question"></h2>
+      <input type="text" id="answerInput" placeholder="ひらがなで答えてね" />
+      <br />
+      <button onclick="checkAnswer()">答え合わせ</button>
+      <div id="result"></div>
     </div>
-    <div id="progress"></div>
   </div>
-
-  <div id="share" style="margin-top:20px;"></div>
 
   <script>
-    let words = [];
+    let wordList = [];
     let current = 0;
+    let correct = 0;
 
-    function loadWords() {
-      const text = document.getElementById("input").value;
-      words = text
-        .split("\n")
-        .map(line => line.split(","))
-        .filter(pair => pair.length === 2)
-        .map(([kanji, reading]) => ({ kanji: kanji.trim(), reading: reading.trim() }));
+    function startTest() {
+      const inputText = document.getElementById("wordInput").value.trim();
+      wordList = inputText.split("\n").map(line => {
+        const [kanji, reading] = line.split(",");
+        return { kanji: kanji.trim(), reading: reading.trim() };
+      }).filter(w => w.kanji && w.reading);
+
+      if (wordList.length === 0) return alert("単語を入力してください");
+
+      document.getElementById("inputArea").classList.add("hidden");
+      document.getElementById("quizArea").classList.remove("hidden");
       current = 0;
-      if (words.length > 0) {
-        document.getElementById("quiz").style.display = "block";
-        next();
-      }
+      correct = 0;
+      showQuestion();
     }
 
-    function showAnswer() {
-      document.getElementById("answer").style.display = "block";
-    }
-
-    function next() {
-      if (current >= words.length) {
-        alert("おしまい！");
+    function showQuestion() {
+      if (current >= wordList.length) {
+        document.getElementById("question").innerText = "終了！正解数：" + correct + " / " + wordList.length;
+        document.getElementById("answerInput").classList.add("hidden");
+        document.querySelector("button[onclick='checkAnswer()']").classList.add("hidden");
         return;
       }
-      const word = words[current];
-      document.getElementById("question").textContent = `この漢字の読み方は？： ${word.kanji}`;
-      document.getElementById("answer").textContent = `よみがな： ${word.reading}`;
-      document.getElementById("answer").style.display = "none";
-      document.getElementById("progress").textContent = `問題 ${current + 1} / ${words.length}`;
+
+      document.getElementById("questionCount").innerText = `【${current + 1} / ${wordList.length}】`;
+      document.getElementById("question").innerText = wordList[current].kanji;
+      document.getElementById("answerInput").value = "";
+      document.getElementById("result").innerText = "";
+    }
+
+    function checkAnswer() {
+      const userAnswer = document.getElementById("answerInput").value.trim();
+      const correctAnswer = wordList[current].reading;
+      if (userAnswer === correctAnswer) {
+        document.getElementById("result").innerText = "⭕️ 正解！";
+        correct++;
+      } else {
+        document.getElementById("result").innerText = `❌ 正解は「${correctAnswer}」`;
+      }
       current++;
+      setTimeout(showQuestion, 1000);
     }
 
-    function generateShareLink() {
-      if (words.length === 0) {
-        alert("単語リストを読み込んでください");
-        return;
-      }
-      const json = JSON.stringify(words);
-      const encoded = btoa(unescape(encodeURIComponent(json)));
-      const url = `${location.origin}${location.pathname}?data=${encoded}`;
-      const link = `<p>共有URL：<a href="${url}" target="_blank">${url}</a></p>`;
-      document.getElementById("share").innerHTML = link;
+    function shareURL() {
+      const inputText = document.getElementById("wordInput").value.trim();
+      if (!inputText) return alert("単語を入力してください");
+
+      const base64 = btoa(unescape(encodeURIComponent(inputText)));
+      const url = `${location.origin}${location.pathname}?data=${base64}`;
+      navigator.clipboard.writeText(url).then(() => {
+        alert("共有URLをコピーしました！\n" + url);
+      });
     }
 
-    function loadFromUrl() {
+    function loadFromURL() {
       const params = new URLSearchParams(location.search);
-      const data = params.get("data");
-      if (data) {
+      if (params.has("data")) {
         try {
-          const decoded = decodeURIComponent(escape(atob(data)));
-          words = JSON.parse(decoded);
+          const decoded = decodeURIComponent(escape(atob(params.get("data"))));
+          wordList = decoded.split("\n").map(line => {
+            const [kanji, reading] = line.split(",");
+            return { kanji: kanji.trim(), reading: reading.trim() };
+          }).filter(w => w.kanji && w.reading);
+
+          document.getElementById("inputArea").classList.add("hidden");
+          document.getElementById("quizArea").classList.remove("hidden");
           current = 0;
-          document.getElementById("quiz").style.display = "block";
-          document.getElementById("input").style.display = "none";
-          next();
+          correct = 0;
+          showQuestion();
         } catch (e) {
-          console.error("読み込み失敗", e);
+          alert("URLのデータが壊れています");
         }
       }
     }
+
+    window.onload = loadFromURL;
+  </script>
+</body>
+</html>
+
 
     window.onload = loadFromUrl;
   </script>
