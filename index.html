@@ -1,162 +1,165 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>日本語クイズ</title>
+  <meta charset="UTF-8">
+  <title>漢字クイズ</title>
   <style>
     body {
       font-family: sans-serif;
-      text-align: center;
       padding: 20px;
+      text-align: center;
     }
     .card {
-      border: 2px solid #ccc;
-      border-radius: 12px;
+      border: 2px solid #888;
+      border-radius: 10px;
       padding: 20px;
       margin: 20px auto;
-      max-width: 400px;
-      background-color: #f9f9f9;
+      width: 300px;
     }
-    .quiz {
-      font-size: 32px;
-      margin-bottom: 20px;
+    .word {
+      font-size: 2em;
+      margin: 20px 0;
     }
-    button {
-      font-size: 18px;
-      margin: 8px;
+    .btn {
       padding: 10px 20px;
-      border-radius: 10px;
-      border: none;
-      background-color: #4CAF50;
-      color: white;
+      margin: 5px;
+      font-size: 1em;
+      cursor: pointer;
     }
-    input, textarea {
-      font-size: 16px;
-      margin: 4px;
-      padding: 6px;
-      width: 80%;
-    }
-    #edit-mode {
-      display: none;
+    textarea {
+      width: 90%;
+      height: 100px;
     }
   </style>
 </head>
 <body>
-  <h1 id="title">日本語クイズ</h1>
 
-  <div id="edit-mode">
-    <textarea id="wordInput" rows="6" placeholder="たとえば：&#10;食べる,たべる&#10;行く,いく"></textarea><br />
-    <button onclick="addWords()">単語を追加する</button>
-    <button onclick="exportLink()">URLをつくる</button>
-    <button onclick="startQuiz()">クイズをする</button>
-    <div id="wordList"></div>
+<h1 id="title">漢字クイズ（編集モード）</h1>
+
+<div id="edit-section">
+  <p>「漢字,ひらがな」の形式で1行ずつ入力してください。</p>
+  <textarea id="word-input" placeholder="例：学,がく"></textarea><br>
+  <button class="btn" onclick="importWords()">単語を追加</button>
+  <button class="btn" onclick="startQuiz()">クイズを始める</button><br><br>
+  <button class="btn" onclick="shareQuiz()">この単語でクイズを共有</button>
+</div>
+
+<div id="quiz-section" style="display:none;">
+  <div class="card">
+    <div class="word" id="question">？</div>
+    <div id="answer" style="display:none; font-size: 1.5em; color: green;"></div>
+    <div id="buttons">
+      <button class="btn" onclick="showAnswer()">こたえ を みる</button>
+    </div>
   </div>
-
-  <div id="quiz" class="card" style="display:none;">
-    <div class="quiz" id="question"></div>
-    <div id="answer" style="display:none; font-size: 24px; margin-bottom: 12px;"></div>
-    <button onclick="showAnswer()">こたえをみる</button><br/>
-    <button onclick="nextQuestion()">まる</button>
-    <button onclick="nextQuestion()">ばつ</button><br/>
-    <button onclick="restartQuiz()">さいしょから</button>
+  <div id="self-judgment" style="display:none;">
+    <p>あっていた？</p>
+    <button class="btn" onclick="nextQuestion()">○</button>
+    <button class="btn" onclick="nextQuestion()">×</button>
   </div>
+  <button class="btn" onclick="restartQuiz()">さいしょから</button>
+</div>
 
-  <script>
-    let words = [];
-    let current = 0;
-    const isShared = location.search.startsWith("?data=");
+<script>
+let wordList = [];
+let currentIndex = 0;
+let isQuizMode = false;
 
-    function loadFromUrl() {
-      const params = new URLSearchParams(location.search);
-      const data = params.get("data");
-      try {
-        words = JSON.parse(decodeURIComponent(data));
-        document.getElementById("title").textContent = "にほんご くいず";
+function importWords() {
+  const input = document.getElementById("word-input").value.trim();
+  const lines = input.split("\n");
+  lines.forEach(line => {
+    const [kanji, reading] = line.split(",");
+    if (kanji && reading) {
+      wordList.push({ kanji: kanji.trim(), reading: reading.trim() });
+    }
+  });
+  alert("単語を追加しました");
+}
+
+function startQuiz() {
+  if (wordList.length === 0) {
+    alert("単語がありません");
+    return;
+  }
+  shuffleArray(wordList);
+  currentIndex = 0;
+  document.getElementById("edit-section").style.display = "none";
+  document.getElementById("quiz-section").style.display = "block";
+  document.getElementById("title").innerText = isQuizMode ? "かんじクイズ" : "漢字クイズ";
+  showQuestion();
+}
+
+function showQuestion() {
+  const word = wordList[currentIndex];
+  document.getElementById("question").innerText = word.kanji;
+  document.getElementById("answer").style.display = "none";
+  document.getElementById("self-judgment").style.display = "none";
+  document.getElementById("answer").innerText = word.reading;
+  document.getElementById("buttons").style.display = "block";
+}
+
+function showAnswer() {
+  document.getElementById("answer").style.display = "block";
+  document.getElementById("self-judgment").style.display = "block";
+  document.getElementById("buttons").style.display = "none";
+}
+
+function nextQuestion() {
+  currentIndex++;
+  if (currentIndex >= wordList.length) {
+    alert("ぜんぶ ときおわりました");
+    currentIndex = 0;
+  }
+  showQuestion();
+}
+
+function restartQuiz() {
+  currentIndex = 0;
+  shuffleArray(wordList);
+  showQuestion();
+}
+
+function shareQuiz() {
+  const json = JSON.stringify(wordList);
+  const encoded = encodeURIComponent(json);
+  const url = location.origin + location.pathname + "?data=" + encoded;
+  navigator.clipboard.writeText(url);
+  alert("このURLを共有してください:\n" + url);
+}
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function loadFromUrl() {
+  const params = new URLSearchParams(location.search);
+  if (params.has("data")) {
+    try {
+      const decoded = decodeURIComponent(params.get("data"));
+      const parsed = JSON.parse(decoded);
+      if (Array.isArray(parsed)) {
+        wordList = parsed;
+        isQuizMode = true;
+        document.getElementById("edit-section").style.display = "none";
+        document.getElementById("quiz-section").style.display = "block";
+        document.getElementById("title").innerText = "かんじクイズ";
         startQuiz();
-      } catch {
-        document.getElementById("title").textContent = "データがこわれています";
+      } else {
+        alert("データがこわれています");
       }
+    } catch (e) {
+      alert("データがこわれています");
     }
+  }
+}
 
-    function addWords() {
-      const input = document.getElementById("wordInput").value.trim();
-      const lines = input.split("\n");
-      for (let line of lines) {
-        const [kanji, reading] = line.split(",");
-        if (kanji && reading) {
-          words.push({ kanji: kanji.trim(), reading: reading.trim() });
-        }
-      }
-      updateList();
-      document.getElementById("wordInput").value = "";
-    }
+loadFromUrl();
+</script>
 
-    function updateList() {
-      const list = document.getElementById("wordList");
-      list.innerHTML = "";
-      words.forEach((w, i) => {
-        const div = document.createElement("div");
-        div.textContent = `${w.kanji}（${w.reading}）`;
-        const del = document.createElement("button");
-        del.textContent = "けす";
-        del.onclick = () => {
-          words.splice(i, 1);
-          updateList();
-        };
-        div.appendChild(del);
-        list.appendChild(div);
-      });
-    }
-
-    function exportLink() {
-      if (words.length === 0) {
-        alert("まず たんご を いれてください。");
-        return;
-      }
-      const json = encodeURIComponent(JSON.stringify(words));
-      const url = `${location.origin}${location.pathname}?data=${json}`;
-      prompt("このURLを きょうゆう してください：", url);
-    }
-
-    function startQuiz() {
-      if (words.length === 0) {
-        alert("たんご が ありません。");
-        return;
-      }
-      current = 0;
-      document.getElementById("edit-mode").style.display = "none";
-      document.getElementById("quiz").style.display = "block";
-      nextQuestion();
-    }
-
-    function showAnswer() {
-      document.getElementById("answer").style.display = "block";
-    }
-
-    function nextQuestion() {
-      if (current >= words.length) {
-        current = 0;
-        alert("ぜんぶ おわりました！");
-      }
-      const q = words[current];
-      document.getElementById("question").textContent = q.kanji;
-      document.getElementById("answer").textContent = q.reading;
-      document.getElementById("answer").style.display = "none";
-      current++;
-    }
-
-    function restartQuiz() {
-      current = 0;
-      nextQuestion();
-    }
-
-    if (isShared) {
-      loadFromUrl();
-    } else {
-      document.getElementById("edit-mode").style.display = "block";
-    }
-  </script>
 </body>
 </html>
 
