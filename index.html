@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -26,7 +25,6 @@
     <ul id="vocabList" class="word-list"></ul>
   </div>
 
-
   <select id="quizType">
     <option value="thaiToJapanese">A → B</option>
     <option value="japaneseToThai">B → A</option>
@@ -52,6 +50,7 @@
   let originalVocab = [];
   let currentIndex = 0, usedIndices = [], wrongIndices = [], correctCount = 0;
   let isRetest = false;
+  let resultLog = [];
 
   function addWords() {
     const lines = document.getElementById("bulkInput").value.trim().split("\n");
@@ -89,6 +88,7 @@
     usedIndices = [];
     wrongIndices = [];
     correctCount = 0;
+    resultLog = [];
     isRetest = false;
     document.getElementById("result").textContent = "";
     document.getElementById("quizCard").classList.remove("hide");
@@ -100,6 +100,7 @@
     usedIndices = [];
     wrongIndices = [];
     correctCount = 0;
+    resultLog = [];
     isRetest = false;
     document.getElementById("result").textContent = "さいしょから くいずを はじめます";
     document.getElementById("quizCard").classList.remove("hide");
@@ -112,6 +113,7 @@
     usedIndices = [];
     wrongIndices = [];
     correctCount = 0;
+    resultLog = [];
     isRetest = true;
     document.getElementById("result").textContent = "まちがい さいちょうせん を はじめます";
     document.getElementById("quizCard").classList.remove("hide");
@@ -125,18 +127,28 @@
       const rate = Math.round((correct / total) * 100);
 
       if (isRetest) {
-        // 再テストおわり → 元の単語リストに戻して最初から開始
         vocab = originalVocab.slice();
         usedIndices = [];
         wrongIndices = [];
         correctCount = 0;
+        resultLog = [];
         isRetest = false;
         document.getElementById("result").textContent = "さいしょから くいずを はじめます";
         nextQuestion();
         return;
       }
 
-      document.getElementById("result").textContent = `おわり！（${correct} せいかい / ${total} もん｜せいかいりつ ${rate}%）`;
+      let summary = resultLog.map(log => {
+        const w = vocab[log.index];
+        const type = document.getElementById("quizType").value;
+        let q = type === "thaiToJapanese" ? w.thai :
+                type === "japaneseToThai" ? w.japanese :
+                w.example || "(れいぶんなし)";
+        return `${log.result}：${q}`;
+      }).join("<br>");
+
+      document.getElementById("result").innerHTML =
+        `おわり！（${correct} せいかい / ${total} もん｜せいかいりつ ${rate}%）<br><br>${summary}`;
       document.getElementById("quizCard").classList.add("hide");
       return;
     }
@@ -158,9 +170,6 @@
     } else if (type === "japaneseToThai") {
       question = w.japanese;
       answer = w.thai;
-    } else if (type === "exampleToJapanese") {
-      question = w.example || "(れいぶんが ありません)";
-      answer = w.japanese;
     }
 
     document.getElementById("question").textContent = question;
@@ -175,11 +184,13 @@
 
   function markCorrect() {
     correctCount++;
+    resultLog.push({ index: currentIndex, result: "○" });
     nextQuestion();
   }
 
   function markWrong() {
     if (!wrongIndices.includes(currentIndex)) wrongIndices.push(currentIndex);
+    resultLog.push({ index: currentIndex, result: "×" });
     nextQuestion();
   }
 
